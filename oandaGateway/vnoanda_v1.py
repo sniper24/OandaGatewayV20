@@ -1,66 +1,13 @@
-# encoding: utf-8
-
-import logging
-'''
-from vtFunction import AppLoger
-apploger = AppLoger()
-apploger.set_log_level(logging.INFO)
-apiLog = apploger.get_logger()
-'''
-
-import json
-import requests
-from Queue import Queue, Empty
-from threading import Thread
-
-
-API_SETTING = {}
-API_SETTING['practice'] = {'rest': 'https://api-fxpractice.oanda.com',
-						   'stream': 'https://stream-fxpractice.oanda.com'}
-API_SETTING['trade'] = {'rest': 'https://api-fxtrade.oanda.com',
-						'stream': 'https://stream-fxtrade.oanda.com/'}
-
-
-FUNCTIONCODE_GETINSTRUMENTS = 0
-FUNCTIONCODE_GETPRICES = 1
-FUNCTIONCODE_GETPRICEHISTORY = 2
-FUNCTIONCODE_GETACCOUNTS = 3
-FUNCTIONCODE_GETACCOUNTINFO = 4
-FUNCTIONCODE_GETORDERS = 5
-FUNCTIONCODE_SENDORDER = 6
-FUNCTIONCODE_GETORDERINFO = 7
-FUNCTIONCODE_MODIFYORDER = 8
-FUNCTIONCODE_CANCELORDER = 9
-FUNCTIONCODE_GETTRADES = 10
-FUNCTIONCODE_GETTRADEINFO = 11
-FUNCTIONCODE_MODIFYTRADE= 12
-FUNCTIONCODE_CLOSETRADE = 13
-FUNCTIONCODE_GETPOSITIONS = 14
-FUNCTIONCODE_GETPOSITIONINFO= 15
-FUNCTIONCODE_CLOSEPOSITION = 16
-FUNCTIONCODE_GETTRANSACTIONS = 17
-FUNCTIONCODE_GETTRANSACTIONINFO = 18
-FUNCTIONCODE_GETACCOUNTHISTORY = 19
-FUNCTIONCODE_GETCALENDAR = 20
-FUNCTIONCODE_GETPOSITIONRATIOS = 21
-FUNCTIONCODE_GETSPREADS = 22
-FUNCTIONCODE_GETCOMMIMENTS = 23
-FUNCTIONCODE_GETORDERBOOK = 24
-FUNCTIONCODE_GETAUTOCHARTIST = 25
-FUNCTIONCODE_STREAMPRICES = 26
-FUNCTIONCODE_STREAMEVENTS = 27
-
-from ctaAlgo.ctaParamLive import CTA_SETTING_LIST_LIVE
 
 ########################################################################
-class OandaApiV3(object):
+class OandaApi(object):
 	""""""
 	DEBUG = False
 
 	#----------------------------------------------------------------------
 	def __init__(self):
 		"""Constructor"""
-		
+
 		self.logger = logging.getLogger(__name__)
 		self.logger.debug("OandaApi.logger inited")
 
@@ -70,8 +17,7 @@ class OandaApiV3(object):
 		self.restDomain = ''
 		self.streamDomain = ''
 		self.session = None
-		self.orderInstrument=['USD_JPY']
-
+		
 		self.functionSetting = {}
 		
 		self.active = False         # API的工作状态
@@ -80,8 +26,8 @@ class OandaApiV3(object):
 		self.reqQueue = Queue()     # 请求队列
 		self.reqThread = Thread(target=self.processQueue)   # 请求处理线程
 		
-		self.symbols = [x['vtSymbol'] for x in CTA_SETTING_LIST_LIVE] # AUG02
-		
+        self.symbols = [x['vtSymbol'] for x in CTA_SETTING_LIST_LIVE]
+
 		self.streamPricesThread = Thread(target=self.processStreamPrices)   # 实时行情线程
 		self.streamEventsThread = Thread(target=self.processStreamEvents)   # 实时事件线程（成交等）
 		
@@ -97,91 +43,91 @@ class OandaApiV3(object):
 		
 		self.headers['Authorization'] = 'Bearer ' + self.token
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETINSTRUMENTS, {'path': '/v3/accounts/%s/instruments' % self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETINSTRUMENTS, {'path': '/v1/instruments',
 														  'method': 'GET'})
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETPRICES, {'path': '/v3/accounts/%s/pricing' % self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETPRICES, {'path': '/v1/prices',
 														  'method': 'GET'})        
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETPRICEHISTORY, {'path': '/v3/candles',
+		self.initFunctionSetting(FUNCTIONCODE_GETPRICEHISTORY, {'path': 'v1/candles',
 																'method': 'GET'})
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETACCOUNTS, {'path': '/v3/accounts',
+		self.initFunctionSetting(FUNCTIONCODE_GETACCOUNTS, {'path': '/v1/accounts',
 														  'method': 'GET'})  
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETACCOUNTINFO, {'path': '/v3/accounts/%s/summary' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETACCOUNTINFO, {'path': '/v1/accounts/%s' %self.accountId,
 														  'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETORDERS, {'path': '/v3/accounts/%s/orders' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETORDERS, {'path': '/v1/accounts/%s/orders' %self.accountId,
 														  'method': 'GET'})        
 		
-		self.initFunctionSetting(FUNCTIONCODE_SENDORDER, {'path': '/v3/accounts/%s/orders' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_SENDORDER, {'path': '/v1/accounts/%s/orders' %self.accountId,
 														  'method': 'POST'})     
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETORDERINFO, {'path': '/v3/accounts/%s/orders' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETORDERINFO, {'path': '/v1/accounts/%s/orders' %self.accountId,
 														  'method': 'GET'})     
 		
-		self.initFunctionSetting(FUNCTIONCODE_MODIFYORDER, {'path': '/v3/accounts/%s/orders' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_MODIFYORDER, {'path': '/v1/accounts/%s/orders' %self.accountId,
 														  'method': 'PATCH'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_CANCELORDER, {'path': '/v3/accounts/%s/orders' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_CANCELORDER, {'path': '/v1/accounts/%s/orders' %self.accountId,
 														  'method': 'DELETE'})             
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETTRADES, {'path': '/v3/accounts/%s/trades' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETTRADES, {'path': '/v1/accounts/%s/trades' %self.accountId,
 														  'method': 'GET'})        
 
-		self.initFunctionSetting(FUNCTIONCODE_GETTRADEINFO, {'path': '/v3/accounts/%s/trades' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETTRADEINFO, {'path': '/v1/accounts/%s/trades' %self.accountId,
 															 'method': 'GET'})     
 		
-		self.initFunctionSetting(FUNCTIONCODE_MODIFYTRADE, {'path': '/v3/accounts/%s/trades' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_MODIFYTRADE, {'path': '/v1/accounts/%s/trades' %self.accountId,
 															'method': 'PATCH'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_CLOSETRADE, {'path': '/v3/accounts/%s/trades' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_CLOSETRADE, {'path': '/v1/accounts/%s/trades' %self.accountId,
 														   'method': 'DELETE'})     
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETPOSITIONS, {'path': '/v3/accounts/%s/openPositions' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETPOSITIONS, {'path': '/v1/accounts/%s/positions' %self.accountId,
 															 'method': 'GET'})     
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETPOSITIONINFO, {'path': '/v3/accounts/%s/positions' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETPOSITIONINFO, {'path': '/v1/accounts/%s/positions' %self.accountId,
 																'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_CLOSEPOSITION, {'path': '/v3/accounts/%s/positions' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_CLOSEPOSITION, {'path': '/v1/accounts/%s/positions' %self.accountId,
 															  'method': 'DELETE'})            
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETTRANSACTIONS, {'path': '/v3/accounts/%s/transactions' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETTRANSACTIONS, {'path': '/v1/accounts/%s/transactions' %self.accountId,
 																'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETTRANSACTIONINFO, {'path': '/v3/accounts/%s/transactions' %self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_GETTRANSACTIONINFO, {'path': '/v1/accounts/%s/transactions' %self.accountId,
 																   'method': 'GET'})    
-		# v20,v1 rest都没有历史账户的功能
-		self.initFunctionSetting(FUNCTIONCODE_GETACCOUNTHISTORY, {'path': '/v3/accounts/%s/alltransactions' %self.accountId,
+		
+		self.initFunctionSetting(FUNCTIONCODE_GETACCOUNTHISTORY, {'path': '/v1/accounts/%s/alltransactions' %self.accountId,
 																  'method': 'GET'})     
 		
 		self.initFunctionSetting(FUNCTIONCODE_GETCALENDAR, {'path': '/labs/v1/calendar',
 															'method': 'GET'})           
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETPOSITIONRATIOS, {'path': '/labs/v3/historical_position_ratios',
+		self.initFunctionSetting(FUNCTIONCODE_GETPOSITIONRATIOS, {'path': '/labs/v1/historical_position_ratios',
 																  'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETSPREADS, {'path': '/labs/v3/spreads',
+		self.initFunctionSetting(FUNCTIONCODE_GETSPREADS, {'path': '/labs/v1/spreads',
 														   'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETCOMMIMENTS, {'path': '/labs/v3/commitments',
+		self.initFunctionSetting(FUNCTIONCODE_GETCOMMIMENTS, {'path': '/labs/v1/commitments',
 															  'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETORDERBOOK, {'path': '/labs/v3/orderbook_data',
+		self.initFunctionSetting(FUNCTIONCODE_GETORDERBOOK, {'path': '/labs/v1/orderbook_data',
 															 'method': 'GET'})    
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETAUTOCHARTIST, {'path': '/labs/v3/autochartist',
+		self.initFunctionSetting(FUNCTIONCODE_GETAUTOCHARTIST, {'path': '/labs/v1/autochartist',
 																'method': 'GET'})  
 		
-		self.initFunctionSetting(FUNCTIONCODE_GETAUTOCHARTIST, {'path': '/labs/v3/autochartist',
+		self.initFunctionSetting(FUNCTIONCODE_GETAUTOCHARTIST, {'path': '/labs/v1/autochartist',
 																'method': 'GET'})  
 		
-		self.initFunctionSetting(FUNCTIONCODE_STREAMPRICES, {'path': '/v3/accounts/%s/pricing/stream' % self.accountId,
+		self.initFunctionSetting(FUNCTIONCODE_STREAMPRICES, {'path': '/v1/prices',
 															 'method': 'GET'})  
-		# v20 transaction stream
-		self.initFunctionSetting(FUNCTIONCODE_STREAMEVENTS, {'path': '/v3/accounts/%s/transactions/stream' % self.accountId,
+		
+		self.initFunctionSetting(FUNCTIONCODE_STREAMEVENTS, {'path': '/v1/events',
 															 'method': 'GET'})          
 		
 		
@@ -218,7 +164,6 @@ class OandaApiV3(object):
 		elif method in ['POST', 'PATCH']:
 			myreq = requests.Request(method, url, headers=self.headers, data=params)
 		pre = myreq.prepare()
-		self.logger.info("method:%s, head:%s, will send url:%s, params:%s" % (method, pre.headers, pre.url, params))
 
 		r = None
 		error = None
@@ -227,9 +172,7 @@ class OandaApiV3(object):
 			r = self.session.send(pre, stream=stream)
 		except Exception, e:
 			error = e
-		if r != None: 
-			self.logger.info("response is %s, error is %s" % (r.json(), error))
-	
+
 		return r, error
 	
 	#----------------------------------------------------------------------
@@ -241,19 +184,16 @@ class OandaApiV3(object):
 				callback = req['callback']
 				reqID = req['reqID']
 				
-				#oanda返回消息
 				r, error = self.processRequest(req)
-				self.logger.info("callback is %s, reqID:%d" % (callback.__name__, reqID))
+				
 				if r:
 					try:
-						#提取返回消息的body
 						data = r.json()
 						if self.DEBUG:
 							print callback.__name__                        
 						callback(data, reqID)    
 					except Exception, e:                  
-						self.onError(str(e), reqID)
-						self.logger.error("callback %s exception %s" %(callback.__name__, str(e)))                      
+						self.onError(str(e), reqID)                      
 				else:                
 					self.onError(error, reqID)
 			except Empty:
@@ -277,7 +217,7 @@ class OandaApiV3(object):
 			   'reqID': self.reqID}
 		self.reqQueue.put(req)
 		
-		self.logger.info("send url:%s, method:%s, params:%s, reqID:%d" % (url, setting['method'], params, self.reqID))
+		self.logger.info("url:%s" % url)
 		return self.reqID
 	
 	#----------------------------------------------------------------------
@@ -468,7 +408,6 @@ class OandaApiV3(object):
 		
 	#----------------------------------------------------------------------
 	def getTransactionInfo(self, optional):
-		# print ("enter getTransactionInfo %s" % optional)
 		"""查询资金变动信息"""
 		return self.sendRequest(FUNCTIONCODE_GETTRANSACTIONINFO, {}, self.onGetTransactionInfo, optional)
 	
@@ -561,25 +500,17 @@ class OandaApiV3(object):
 	def processStreamPrices(self):
 		"""获取价格推送"""
 		# 首先获取所有合约的代码
-		setting = self.functionSetting[FUNCTIONCODE_GETORDERS]
+		setting = self.functionSetting[FUNCTIONCODE_GETINSTRUMENTS]
 		req = {'url': self.restDomain + setting['path'],
 			   'method': setting['method'],
-			   'params': {}}
+			   'params': {'accountId': self.accountId}}
 		r, error = self.processRequest(req)
 		if r:
 			try:
 				data = r.json()
-				# v20 api 没有instrument字段
-				# symbols = [d['name'] for d in data['instruments']]
-				l = data['orders']
-				for d in l:
-					if not 'instrument'in d and not d['instrument'] in self.orderInstrument:
-						self.orderInstrument.append(d['instrument'])
-
-				self.logger.info("get instrument name %s" % self.orderInstrument)   
+				symbols = [d['instrument'] for d in data['instruments']]   
 			except Exception, e:
 				self.onError(e, -1)
-				self.logger.error("get instruments error %s" % e)
 				return
 		else:
 			self.onError(error, -1)
@@ -587,23 +518,13 @@ class OandaApiV3(object):
 
 		# 然后订阅所有的合约行情
 		setting = self.functionSetting[FUNCTIONCODE_STREAMPRICES]
-		# params = {'accountId': self.accountId,
-		#           'instruments': ','.join(self.orderInstrument)}
-		params = {'instruments':','.join(self.orderInstrument)}
-		# params = {'instruments': self.orderInstrument[0]}
-
+		params = {'accountId': self.accountId,
+				  'instruments': ','.join(symbols)}
 		req = {'url': self.streamDomain + setting['path'],
 			   'method': setting['method'],
 			   'params': params,
-			   'stream': True}    
-	   
-		# r, error = self.processRequest(req)
-
-		myreq = requests.Request(req['method'], req['url'], headers=self.headers, params=req['params'])
-		pre = myreq.prepare()
-
-		s = requests.session()
-		r = s.send(pre, stream=True)
+			   'stream': True}      
+		r, error = self.processRequest(req)
 		
 		if r:
 			for line in r.iter_lines():
@@ -613,7 +534,7 @@ class OandaApiV3(object):
 						
 						if self.DEBUG:
 							print self.onPrice.__name__
-						self.logger.info("get price %s" % msg)
+
 						self.onPrice(msg)
 					except Exception, e:
 						self.onError(e, -1)
@@ -631,14 +552,7 @@ class OandaApiV3(object):
 			   'method': setting['method'],
 			   'params': {},
 			   'stream': True}
-		# r, error = self.processRequest(req)
-
-		myreq = requests.Request(req['method'], req['url'], headers=self.headers, params=req['params'])
-		pre = myreq.prepare()
-
-		s = requests.session()
-		r = s.send(pre, stream=True)
-		
+		r, error = self.processRequest(req)
 		if r:
 			for line in r.iter_lines():
 				if line:
@@ -647,9 +561,10 @@ class OandaApiV3(object):
 						
 						if self.DEBUG:
 							print self.onEvent.__name__
-							
+						self.logger.info("get Steam event %s" % msg)    
 						self.onEvent(msg)
 					except Exception, e:
+						self.logger.info("get Steam error %s" % e)
 						self.onError(e, -1)
 				
 				if not self.active:
