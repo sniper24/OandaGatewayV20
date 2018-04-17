@@ -1,11 +1,12 @@
 # encoding: utf-8
 
 import logging
+'''
 from vtFunction import AppLoger
 apploger = AppLoger()
 apploger.set_log_level(logging.INFO)
 apiLog = apploger.get_logger()
-
+'''
 
 import json
 import requests
@@ -58,6 +59,10 @@ class OandaApi(object):
 	#----------------------------------------------------------------------
 	def __init__(self):
 		"""Constructor"""
+
+		self.logger = logging.getLogger(__name__)
+		self.logger.debug("OandaApi.logger inited")
+
 		self.token = ''
 		self.accountId = ''
 		self.headers = {}
@@ -262,7 +267,7 @@ class OandaApi(object):
 			   'reqID': self.reqID}
 		self.reqQueue.put(req)
 		
-		apiLog.info("url:%s" % url)
+		self.logger.info("url:%s" % url)
 		return self.reqID
 	
 	#----------------------------------------------------------------------
@@ -606,10 +611,10 @@ class OandaApi(object):
 						
 						if self.DEBUG:
 							print self.onEvent.__name__
-						apiLog.info("get Steam event %s" % msg)    
+						self.logger.info("get Steam event %s" % msg)    
 						self.onEvent(msg)
 					except Exception, e:
-						apiLog.info("get Steam error %s" % e)
+						self.logger.info("get Steam error %s" % e)
 						self.onError(e, -1)
 				
 				if not self.active:
@@ -625,6 +630,10 @@ class OandaApiV3(object):
 	#----------------------------------------------------------------------
 	def __init__(self):
 		"""Constructor"""
+		
+		self.logger = logging.getLogger(__name__)
+		self.logger.debug("OandaApi.logger inited")
+
 		self.token = ''
 		self.accountId = ''
 		self.headers = {}
@@ -777,7 +786,7 @@ class OandaApiV3(object):
 		elif method in ['POST', 'PATCH']:
 			myreq = requests.Request(method, url, headers=self.headers, data=params)
 		pre = myreq.prepare()
-		apiLog.info("method:%s, head:%s, will send url:%s, params:%s" % (method, pre.headers, pre.url, params))
+		self.logger.info("method:%s, head:%s, will send url:%s, params:%s" % (method, pre.headers, pre.url, params))
 
 		r = None
 		error = None
@@ -787,7 +796,7 @@ class OandaApiV3(object):
 		except Exception, e:
 			error = e
 		if r != None: 
-			apiLog.info("response is %s, error is %s" % (r.json(), error))
+			self.logger.info("response is %s, error is %s" % (r.json(), error))
 	
 		return r, error
 	
@@ -802,7 +811,7 @@ class OandaApiV3(object):
 				
 				#oanda返回消息
 				r, error = self.processRequest(req)
-				apiLog.info("callback is %s, reqID:%d" % (callback.__name__, reqID))
+				self.logger.info("callback is %s, reqID:%d" % (callback.__name__, reqID))
 				if r:
 					try:
 						#提取返回消息的body
@@ -812,7 +821,7 @@ class OandaApiV3(object):
 						callback(data, reqID)    
 					except Exception, e:                  
 						self.onError(str(e), reqID)
-						apiLog.error("callback %s exception %s" %(callback.__name__, str(e)))                      
+						self.logger.error("callback %s exception %s" %(callback.__name__, str(e)))                      
 				else:                
 					self.onError(error, reqID)
 			except Empty:
@@ -836,7 +845,7 @@ class OandaApiV3(object):
 			   'reqID': self.reqID}
 		self.reqQueue.put(req)
 		
-		apiLog.info("send url:%s, method:%s, params:%s, reqID:%d" % (url, setting['method'], params, self.reqID))
+		self.logger.info("send url:%s, method:%s, params:%s, reqID:%d" % (url, setting['method'], params, self.reqID))
 		return self.reqID
 	
 	#----------------------------------------------------------------------
@@ -1135,10 +1144,10 @@ class OandaApiV3(object):
 					if not 'instrument'in d and not d['instrument'] in self.orderInstrument:
 						self.orderInstrument.append(d['instrument'])
 
-				apiLog.info("get instrument name %s" % self.orderInstrument)   
+				self.logger.info("get instrument name %s" % self.orderInstrument)   
 			except Exception, e:
 				self.onError(e, -1)
-				apiLog.error("get instruments error %s" % e)
+				self.logger.error("get instruments error %s" % e)
 				return
 		else:
 			self.onError(error, -1)
@@ -1172,7 +1181,7 @@ class OandaApiV3(object):
 						
 						if self.DEBUG:
 							print self.onPrice.__name__
-						apiLog.info("get price %s" % msg)
+						self.logger.info("get price %s" % msg)
 						self.onPrice(msg)
 					except Exception, e:
 						self.onError(e, -1)

@@ -23,11 +23,12 @@ sys.path.append('..')
 sys.path.append('../../')
 
 import logging
+'''
 from vtFunction import AppLoger
 apploger = AppLoger()
 apploger.set_log_level(logging.INFO)
 agentLog = apploger.get_logger()
-
+'''
 
 
 import os
@@ -62,6 +63,10 @@ class OandaGateway(VtGateway):
         
         self.api = ApiV3(self)     
         
+        # logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("oandaGateway.logger inited")
+
         self.qryEnabled = False         # 是否要启动循环查询
         
     #----------------------------------------------------------------------
